@@ -26,7 +26,7 @@
         pip install pyngrok
         pip install supabase
 
-          # Backserver 추가(설치시 torch 재설치 필요.)
+        # Backserver 추가(설치시 torch 재설치 필요.)
         pip install silero-vad
         pip install faster-whisper
         pip install pyannote-audio
@@ -46,11 +46,10 @@
     ```
 
 - [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)의 해당항목 이동
-  - 최상단에 ffmpeg.exe, ffprobe.exe 세팅
   - voices 이동
-    - GPT_weights_v2/로 ckpt 이동
-    - SoVITS_weights_v2/로 pth 이동
-  - venv의 LangSegment, pyopenjtalk 이동
+    - GPT_weights_v2ProPlus/ 학습 ckpt 이동
+    - SoVITS_weights_v2ProPlus/ 학습 pth 이동
+  - venv의 pyopenjtalk 이동
   - pretrained_models 이동
 
 ## 빌드

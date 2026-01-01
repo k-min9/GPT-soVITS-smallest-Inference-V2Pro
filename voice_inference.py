@@ -1022,7 +1022,7 @@ if __name__ == '__main__':
     print('save at ' + result)
     
     # ========== Arona 30개 문장 연속 테스트 ==========
-    if False:
+    if True:
         print("\n" + "="*60)
         print("[Arona Multi-Sentence Test] Testing 30 sentences...")
         print("="*60 + "\n")
@@ -1074,7 +1074,7 @@ if __name__ == '__main__':
         print("="*60)
     
     # ========== Zero-Shot Voice Cloning 전체 캐릭터 테스트 ==========
-    if True:
+    if False:
         print("\n" + "="*60)
         print("[Zero-Shot] Testing all characters...")
         print("="*60 + "\n")
