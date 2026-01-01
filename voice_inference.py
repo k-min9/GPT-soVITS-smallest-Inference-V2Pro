@@ -83,10 +83,14 @@ class LRUModelCache:
             self.cache[key] = model
             return
         if len(self.cache) >= self.max_size:
-            oldest_key, oldest_model = self.cache.popitem(last=False)
-            print(f"[LRU] Evicting {self.cache_type} model: {oldest_key}")
-            del oldest_model
-            torch.cuda.empty_cache()
+            # pretrained 모델은 eviction 대상에서 제외
+            for oldest_key in list(self.cache.keys()):
+                if oldest_key != 'pretrained':
+                    oldest_model = self.cache.pop(oldest_key)
+                    print(f"[LRU] Evicting {self.cache_type} model: {oldest_key}")
+                    del oldest_model
+                    torch.cuda.empty_cache()
+                    break
         self.cache[key] = model
     
     def keys(self):
@@ -101,8 +105,9 @@ class LRUModelCache:
     def __contains__(self, key):
         return key in self.cache
 
-vq_models = LRUModelCache(max_size=MAX_CACHED_ACTORS, cache_type="SoVITS")
-t2s_models = LRUModelCache(max_size=MAX_CACHED_ACTORS, cache_type="GPT")
+# pretrained + 10 actors = 11 max size
+vq_models = LRUModelCache(max_size=MAX_CACHED_ACTORS + 1, cache_type="SoVITS")
+t2s_models = LRUModelCache(max_size=MAX_CACHED_ACTORS + 1, cache_type="GPT")
 
 # BERT Lazy Loading
 tokenizer = None
@@ -552,22 +557,41 @@ def process_text(texts):
     return _text
 
 def synthesize_char(char_name, audio_text, audio_language='ja', speed=1):
-    global gpt_path, sovits_path
+    import os
     
-    prompt_info = voice_management.get_prompt_info_from_name(char_name)  # Todo : 없을때의 Try Catch
-    print(prompt_info)
+    voice_info = voice_management.get_voice_info_from_name(char_name)
+    prompt_info = voice_management.get_prompt_info_from_name(char_name)
     
-    prompt_language = prompt_info['language'] # 'ja'
-    ref_wav_path = prompt_info['wav_path'] #'./voices/noa.wav'
-    prompt_text = prompt_info['text'] # 'さすがです、先生。勉強になりました。'
-
-    result = get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor=char_name, speed=speed)
+    if prompt_info is None:
+        print(f'[synthesize_char] ERROR: No prompt info for "{char_name}"')
+        return 'no info'
+    if not os.path.exists(prompt_info.get('wav_path', '')):
+        print(f'[synthesize_char] ERROR: Reference audio not found for "{char_name}"')
+        return 'no info'
+    
+    use_zeroshot = False
+    if voice_info is None:
+        use_zeroshot = True
+        print(f'[synthesize_char] No trained model for "{char_name}", using zero-shot...')
+    elif not os.path.exists(voice_info.get('gpt_path', '')) or not os.path.exists(voice_info.get('sovits_path', '')):
+        use_zeroshot = True
+        print(f'[synthesize_char] Model files missing for "{char_name}", using zero-shot...')
+    
+    prompt_language = prompt_info['language']
+    ref_wav_path = prompt_info['wav_path']
+    prompt_text = prompt_info['text']
+    
+    if use_zeroshot:
+        result = synthesize_cloning_voice(char_name, audio_text, audio_language, speed)
+    else:
+        result = get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor=char_name, speed=speed)
+    
     return result
 
 # ========== Zero-Shot Voice Cloning ==========
 # pretrained 모델용 전역 변수
 pretrained_hps = None
-PRETRAINED_ACTOR = "__pretrained__"  # pretrained 모델용 특별 actor 이름
+PRETRAINED_ACTOR = "pretrained"  # pretrained 모델용 actor 이름 (LRU eviction 대상 제외)
 
 def load_pretrained_models():
     """Zero-shot용 pretrained 모델 로딩 (LRU 캐시에 저장)"""
@@ -619,7 +643,7 @@ def load_pretrained_models():
     vq_models.put(PRETRAINED_ACTOR, pretrained_vq_model)
     t2s_models.put(PRETRAINED_ACTOR, pretrained_t2s_model)
     print(f"[Zero-Shot] Pretrained models cached as '{PRETRAINED_ACTOR}'")
-    
+
 def synthesize_cloning_voice(char_name, audio_text, audio_language='ja', speed=1):
     """
     Zero-shot 음성 클로닝 (pretrained 모델 사용)
