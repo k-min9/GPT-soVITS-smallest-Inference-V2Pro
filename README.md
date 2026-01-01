@@ -13,10 +13,6 @@
     ``` bash
         py -3.10 -m venv venv
 
-        pip install torch==2.5.1+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-        pip install torchaudio==2.5.1
-        pip install torchvision==0.20.1+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-
         pip install transformers==4.57.1
         pip install librosa==0.9.2
         pip install soundfile
@@ -26,9 +22,21 @@
         pip install pytorch-lightning
         pip install matplotlib
         pip install nltk
+        pip install pynvml
+        pip install pyngrok
+        pip install supabase
+
+          # Backserver 추가(설치시 torch 재설치 필요.)
+        pip install silero-vad
+        pip install faster-whisper
+        pip install pyannote-audio
 
         pip install flask
         pip install waitress  # WSGI for production
+
+        pip install torch==2.5.1+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
+        pip install torchaudio==2.5.1
+        pip install torchvision==0.20.1+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
 
         # Conflict Solving
         pip install numpy==1.23
