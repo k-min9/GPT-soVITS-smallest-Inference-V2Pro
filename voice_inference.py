@@ -619,7 +619,7 @@ def load_pretrained_models():
     vq_models.put(PRETRAINED_ACTOR, pretrained_vq_model)
     t2s_models.put(PRETRAINED_ACTOR, pretrained_t2s_model)
     print(f"[Zero-Shot] Pretrained models cached as '{PRETRAINED_ACTOR}'")
-
+    
 def synthesize_cloning_voice(char_name, audio_text, audio_language='ja', speed=1):
     """
     Zero-shot 음성 클로닝 (pretrained 모델 사용)
@@ -665,9 +665,9 @@ Parameters:
     text           : 생성할 텍스트
     text_language  : 생성할 텍스트 언어 # "ja", "ko", "en", "zh"
     how_to_cut     : 텍스트 분할 방식 # "No cut", "Cut every 4 sentences", "Cut every 50 characters", "Cut by Chinese period", "Cut by English period", "Cut by punctuation"
-    top_k          : GPT 샘플링 top-k (default: 20)
-    top_p          : GPT 샘플링 top-p (default: 0.6)
-    temperature    : GPT 샘플링 온도 (default: 0.6) - 높을수록 다양성 증가
+    top_k          : GPT 샘플링 top-k (default: 15)
+    top_p          : GPT 샘플링 top-p (default: 1)
+    temperature    : GPT 샘플링 온도 (default: 1) - 높을수록 다양성 증가
     ref_free       : 참조 없이 생성 여부 (default: False) - v2Pro는 미지원
     speed          : 생성 속도 배율 (default: 1.0)
     if_freeze      : 캐시 사용 여부 (default: False)
@@ -676,7 +676,10 @@ Parameters:
     if_sr          : 오디오 초고해상도 적용 (default: False) - v3 전용
     pause_second   : 문장 간 휴지 시간 초 (default: 0.3)
 '''
-def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language, how_to_cut="No cut", top_k=20, top_p=0.6, temperature=0.6, ref_free=False, speed=1, if_freeze=False, inp_refs=None, sample_steps=8, if_sr=False, pause_second=0.3, actor='arona'):
+# GitHub 기본값: top_k=20, top_p=0.6, temperature=0.6
+# WebUI 및 기존 v2 경험을 통해 top_k=15, top_p=1, temperature=1로 조절
+# (zero-shot에서 EOS 토큰 누락 방지 및 안정적인 생성을 위함)
+def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language, how_to_cut="No cut", top_k=15, top_p=1, temperature=1, ref_free=False, speed=1, if_freeze=False, inp_refs=None, sample_steps=8, if_sr=False, pause_second=0.3, actor='arona'):
     global cache, hps
     
     # LRU 캐시에서 모델 로딩 (Reference v2 방식)
@@ -1014,79 +1017,81 @@ if __name__ == '__main__':
     print('save at ' + result)
     
     # ========== Arona 30개 문장 연속 테스트 ==========
-    print("\n" + "="*60)
-    print("[Arona Multi-Sentence Test] Testing 30 sentences...")
-    print("="*60 + "\n")
-    
-    audio_text_list = []
-    # 일본어 테스트 문장 30개
-    audio_text_list.append("おはようございます、先生。今日も良い一日になりますように。")
-    audio_text_list.append("先生、お疲れ様です。少し休憩しませんか？")
-    audio_text_list.append("このデータを分析してみましたが、興味深い結果が出ました。")
-    audio_text_list.append("シャーレの生徒たちは、みんな元気にしています。")
-    audio_text_list.append("今日の授業、とても楽しかったですね。")
-    audio_text_list.append("先生、明日の予定は確認されましたか？")
-    audio_text_list.append("新しいプロジェクトが始まりますよ。")
-    audio_text_list.append("みんなで協力すれば、必ず成功できます。")
-    audio_text_list.append("データベースの更新が完了しました。")
-    audio_text_list.append("セキュリティシステムに異常はありません。")
-    audio_text_list.append("先生のおかげで、問題が解決しました。")
-    audio_text_list.append("この資料、とても参考になると思います。")
-    audio_text_list.append("次の会議は午後2時からです。")
-    audio_text_list.append("お昼ご飯、何を食べますか？")
-    audio_text_list.append("天気が良いですね。散歩しませんか？")
-    audio_text_list.append("新しい機能を追加してみました。")
-    audio_text_list.append("システムのメンテナンスは終わりました。")
-    audio_text_list.append("レポートの提出期限は明日までです。")
-    audio_text_list.append("みんな、頑張っていますね。")
-    audio_text_list.append("先生、質問があります。聞いてもいいですか？")
-    audio_text_list.append("計画通りに進んでいます。")
-    audio_text_list.append("もうすぐゴールが見えてきました。")
-    audio_text_list.append("素晴らしい成果ですね。おめでとうございます。")
-    audio_text_list.append("次のステップに進みましょう。")
-    audio_text_list.append("困ったことがあれば、いつでも相談してください。")
-    audio_text_list.append("先生は本当に頼りになります。")
-    audio_text_list.append("今日も一日、お疲れ様でした。")
-    audio_text_list.append("明日も頑張りましょうね。")
-    audio_text_list.append("良い夢を見てください。おやすみなさい。")
-    audio_text_list.append("また明日お会いしましょう。さようなら。")
-    
-    for idx, text in enumerate(audio_text_list, 1):
-        try:
-            print(f"[{idx}/30] Synthesizing: {text[:30]}...")
-            result = synthesize_char('arona', text, audio_language='ja', speed=1)
-            result_path = os.path.abspath(result)
-            print(f"[{idx}/30] -> {result_path} ✓")
-        except Exception as e:
-            print(f"[{idx}/30] -> FAILED: {e}")
-    
-    print("\n" + "="*60)
-    print("[Arona Multi-Sentence Test] Completed!")
-    print("="*60)
+    if False:
+        print("\n" + "="*60)
+        print("[Arona Multi-Sentence Test] Testing 30 sentences...")
+        print("="*60 + "\n")
+        
+        audio_text_list = []
+        # 일본어 테스트 문장 30개
+        audio_text_list.append("おはようございます、先生。今日も良い一日になりますように。")
+        audio_text_list.append("先生、お疲れ様です。少し休憩しませんか？")
+        audio_text_list.append("このデータを分析してみましたが、興味深い結果が出ました。")
+        audio_text_list.append("シャーレの生徒たちは、みんな元気にしています。")
+        audio_text_list.append("今日の授業、とても楽しかったですね。")
+        audio_text_list.append("先生、明日の予定は確認されましたか？")
+        audio_text_list.append("新しいプロジェクトが始まりますよ。")
+        audio_text_list.append("みんなで協力すれば、必ず成功できます。")
+        audio_text_list.append("データベースの更新が完了しました。")
+        audio_text_list.append("セキュリティシステムに異常はありません。")
+        audio_text_list.append("先生のおかげで、問題が解決しました。")
+        audio_text_list.append("この資料、とても参考になると思います。")
+        audio_text_list.append("次の会議は午後2時からです。")
+        audio_text_list.append("お昼ご飯、何を食べますか？")
+        audio_text_list.append("天気が良いですね。散歩しませんか？")
+        audio_text_list.append("新しい機能を追加してみました。")
+        audio_text_list.append("システムのメンテナンスは終わりました。")
+        audio_text_list.append("レポートの提出期限は明日までです。")
+        audio_text_list.append("みんな、頑張っていますね。")
+        audio_text_list.append("先生、質問があります。聞いてもいいですか？")
+        audio_text_list.append("計画通りに進んでいます。")
+        audio_text_list.append("もうすぐゴールが見えてきました。")
+        audio_text_list.append("素晴らしい成果ですね。おめでとうございます。")
+        audio_text_list.append("次のステップに進みましょう。")
+        audio_text_list.append("困ったことがあれば、いつでも相談してください。")
+        audio_text_list.append("先生は本当に頼りになります。")
+        audio_text_list.append("今日も一日、お疲れ様でした。")
+        audio_text_list.append("明日も頑張りましょうね。")
+        audio_text_list.append("良い夢を見てください。おやすみなさい。")
+        audio_text_list.append("また明日お会いしましょう。さようなら。")
+        
+        for idx, text in enumerate(audio_text_list, 1):
+            try:
+                print(f"[{idx}/30] Synthesizing: {text[:30]}...")
+                result = synthesize_char('arona', text, audio_language='ja', speed=1)
+                result_path = os.path.abspath(result)
+                print(f"[{idx}/30] -> {result_path} ✓")
+            except Exception as e:
+                print(f"[{idx}/30] -> FAILED: {e}")
+        
+        print("\n" + "="*60)
+        print("[Arona Multi-Sentence Test] Completed!")
+        print("="*60)
     
     # ========== Zero-Shot Voice Cloning 전체 캐릭터 테스트 ==========
-    print("\n" + "="*60)
-    print("[Zero-Shot] Testing all characters...")
-    print("="*60 + "\n")
-    
-    # info.json의 모든 캐릭터 목록
-    all_characters = [
-        'arona', 'plana', 'mika', 'yuuka', 'noa', 'koyuki',
-        'nagisa', 'mari', 'kisaki', 'miyako', 'ui', 'seia', 'prana'
-    ]
-    
-    test_text = "先生、お疲れ様でした。今日も頑張りましたね。"  # 테스트용 일본어 텍스트
-    
-    for char in all_characters:
-        try:
-            print(f"\n[Zero-Shot Test] {char}...")
-            result = synthesize_cloning_voice(char, test_text, audio_language='ja', speed=1)
-            # Ctrl+클릭 가능한 절대 경로로 출력
-            result_path = os.path.abspath(result)
-            print(f"[Zero-Shot Test] {char} -> {result_path} ✓")
-        except Exception as e:
-            print(f"[Zero-Shot Test] {char} -> FAILED: {e}")
-    
-    print("\n" + "="*60)
-    print("[Zero-Shot] All tests completed!")
-    print("="*60)
+    if True:
+        print("\n" + "="*60)
+        print("[Zero-Shot] Testing all characters...")
+        print("="*60 + "\n")
+        
+        # info.json의 모든 캐릭터 목록
+        all_characters = [
+            'arona', 'plana', 'mika', 'yuuka', 'noa', 'koyuki',
+            'nagisa', 'mari', 'kisaki', 'miyako', 'ui', 'seia', 'prana'
+        ]
+        
+        test_text = "先生、お疲れ様でした。今日も頑張りましたね。"  # 테스트용 일본어 텍스트
+        
+        for char in all_characters:
+            try:
+                print(f"\n[Zero-Shot Test] {char}...")
+                result = synthesize_cloning_voice(char, test_text, audio_language='ja', speed=1)
+                # Ctrl+클릭 가능한 절대 경로로 출력
+                result_path = os.path.abspath(result)
+                print(f"[Zero-Shot Test] {char} -> {result_path} ✓")
+            except Exception as e:
+                print(f"[Zero-Shot Test] {char} -> FAILED: {e}")
+        
+        print("\n" + "="*60)
+        print("[Zero-Shot] All tests completed!")
+        print("="*60)
