@@ -25,6 +25,12 @@
         pip install pynvml
         pip install pyngrok
         pip install supabase
+        pip install jamo
+        pip install ko_pron
+        pip install g2p_en
+        pip install g2pk2
+        pip install eunjeon
+        pip install wordsegment
 
         # Backserver 추가(설치시 torch 재설치 필요.)
         pip install silero-vad
