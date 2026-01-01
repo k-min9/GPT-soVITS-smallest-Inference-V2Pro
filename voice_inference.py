@@ -184,44 +184,25 @@ def load_sovits_new(sovits_path):
 # 전역 hps (마지막 로드된 SoVITS config)
 hps = None
 
-# def change_sovits_weights(actor, sovits_path):
-#     """v2Pro SoVITS 모델 로딩 (LRU 캐시)"""
-#     global hps, version
+def init_logging():
+    """로그 시스템 초기화"""
+    global LOG_FILE_PATH, VRAM_AVAILABLE
     
-#     cached_model = vq_models.get(actor)
-#     if cached_model is not None:
-#         return cached_model
+    # VRAM 측정 기능 확인
+    try:
+        import pynvml
+        pynvml.nvmlInit()
+        VRAM_AVAILABLE = True
+        print("[LOG] VRAM monitoring enabled")
+    except:
+        VRAM_AVAILABLE = False
+        print("[LOG] VRAM monitoring not available")
     
-#     dict_s2 = torch.load(sovits_path, map_location="cpu", weights_only=False)
-#     hps = dict_s2["config"]
-#     hps = DictToAttrRecursive(hps)
-#     hps.model.semantic_frame_rate = "25hz"
-    
-#     # v2Pro/v2ProPlus 버전 설정
-#     hps.model.version = model_version  # "v2ProPlus"
-#     version = "v2"  # symbol version for text processing
-    
-#     model = SynthesizerTrn(
-#         hps.data.filter_length // 2 + 1,
-#         hps.train.segment_size // hps.data.hop_length,
-#         n_speakers=hps.data.n_speakers,
-#         **hps.model
-#     )
-#     if "pretrained" not in sovits_path:
-#         try:
-#             del model.enc_q
-#         except:
-#             pass
-#     if is_half:
-#         model = model.half().to(device)
-#     else:
-#         model = model.to(device)
-#     model.eval()
-#     print(f"[v2Pro] Loading SoVITS: {sovits_path}")
-#     print(model.load_state_dict(dict_s2["weight"], strict=False))
-    
-#     vq_models.put(actor, model)
-#     return model
+    # 로그 파일 생성
+    os.makedirs('./log', exist_ok=True)
+    log_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".txt"
+    LOG_FILE_PATH = os.path.join('./log', log_filename)
+    print(f"[LOG] Log file created: {LOG_FILE_PATH}")
 
 
 def change_sovits_weights(actor, sovits_path):
