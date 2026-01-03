@@ -35,16 +35,102 @@ prompt_sample = {
     }
 }
 
+# 기호 -> key 매핑용 상수
+
+EMOTION_MAP = {
+    "": "normal",
+    None: "normal",
+
+    # 이미 key로 들어온 경우
+    "normal": "normal",
+    "surprise": "surprise",
+    "question": "question",
+    "calm": "calm",
+    "angry": "angry",
+
+    # 기호 기반 입력
+    "!": "surprise",
+    "！": "surprise",
+    "!!": "surprise",
+    "！！": "surprise",
+    "!!!": "surprise",
+    "！！！": "surprise",
+
+    "?": "question",
+    "？": "question",
+    "??": "question",
+    "？？": "question",
+
+    # 혼합 기호
+    "?!": "surprise",
+    "！？": "question",
+    "!?": "question",
+    "？！": "surprise",
+
+    # 말줄임(요청하신 ... / … 포함)
+    "...": "calm",
+    "…": "calm",
+    "……": "calm",
+    "...!": "surprise",
+    "…!": "surprise",
+    "...？": "question",
+    "...?": "question",
+    "…？": "question",
+    "…?": "question",
+}
+
+def normalize_emotion(emotion):
+    e = emotion
+    if isinstance(e, str):
+        e = e.strip()
+    return EMOTION_MAP.get(e, e if e else "normal")
+
+def classify_emotion_from_text_tail(text, default_emotion="normal"):
+    """
+    텍스트 끝부분(마지막 5글자)을 보고 emotion을 추정합니다.
+    - 요구사항: 마지막 5글자 중에 해당 내용이 있는지 확인하는 방식
+    - 우선순위: 혼합기호 > 말줄임+기호 > 단일기호 > 말줄임
+    """
+    if not text:
+        return normalize_emotion(default_emotion)
+
+    t = str(text).strip()
+    tail = t[-5:] if len(t) >= 5 else t
+
+    # 1) 혼합 기호 우선
+    for token in ["！？", "?!", "!?", "？？", "??"]:
+        if token in tail:
+            return "question"
+
+    # 2) 말줄임 + 기호
+    for token in ["...!", "…!", "...？", "...?", "…？", "…?"]:
+        if token in tail:
+            return normalize_emotion(token)
+
+    # 3) 단일 기호
+    if "!" in tail or "！" in tail:
+        return "surprise"
+    if "?" in tail or "？" in tail:
+        return "question"
+
+    # 4) 말줄임
+    if "..." in tail or "…" in tail:
+        return "calm"
+
+    return normalize_emotion(default_emotion)
+
+
+# 불러오기
 def get_voice_name():
-    # JSON 파일에서 데이터 불러오기
-    with open(FILE_PATH, 'r', encoding='utf-8') as json_file:
-        json_data = json.load(json_file)
+    try:
+        with open(FILE_PATH, 'r', encoding='utf-8') as json_file:
+            json_data = json.load(json_file)
+    except FileNotFoundError:
+        return []
 
-    name_catalogs = list()
-    for voice in json_data["voices"]:
-        name_catalogs.append(voice["name"])
-
-    # 생성된 딕셔너리 출력
+    name_catalogs = []
+    for voice in json_data.get("voices", []):
+        name_catalogs.append(voice.get("name"))
     return name_catalogs
 
 
@@ -183,13 +269,32 @@ def get_prompt_info_from_name(name, emotion='normal'):
         
     for prompt in json_data["prompts"]:
         if prompt["name"] == name:
-            prompt_info = prompt["prompts"].get('normal')  # TODO : 반드시 있어야 함. 없을때의 대비 필요
-            try:
-                 prompt_info = prompt["prompts"].get(emotion, prompt_info)
-            except:
-                pass
-            return prompt_info
+            # 먼저 요청된 emotion을 찾고, 없으면 normal로 fallback하는 구조여야 함
+            prompt_data = prompt["prompts"].get(emotion)
+            if prompt_data:
+                return prompt_data
+            
+            # fallback to normal
+            return prompt["prompts"].get('normal')
+            
     return None
+
+# --- 추가된 함수: 특정 감정이 실제로 존재하는지 확인 ---
+def has_prompt_emotion(name, emotion):
+    try:
+        with open(FILE_PATH, 'r', encoding='utf-8') as json_file:
+            json_data = json.load(json_file)
+        
+        for prompt in json_data["prompts"]:
+            if prompt["name"] == name:
+                return emotion in prompt["prompts"]
+        return False
+    except:
+        return False
+
+# --- 호환성용 별칭: inference test가 이 이름으로 호출함 ---
+append_voice_info_data = add_prompt_info
+
 
 # emotion이 없으면 통째로 삭제 있을 경우, 그 emotion 정보만 삭제
 def remove_prompt_by_name(name, emotion=''):
@@ -215,8 +320,8 @@ def remove_prompt_by_name(name, emotion=''):
 
 
         # JSON 데이터 업데이트
-        with open(FILE_PATH, 'w') as json_file:
-            json.dump(json_data, json_file, indent=2)
+        with open(FILE_PATH, 'w', encoding='utf-8') as json_file:
+            json.dump(json_data, json_file, indent=2, ensure_ascii=False)
     except:
         pass   
     
@@ -264,3 +369,9 @@ if __name__ == "__main__":
     # print(get_prompt_info_from_name(name='arona'))
     # print(get_prompt_info_from_name(name='arona', emotion='angry'))
     # print(get_prompt_info_from_name(name='arona', emotion='error'))  # normal을 잘 가져옴
+    
+    # 끝부분 emotion 분류 예시
+    # print(classify_emotion_from_text_tail("今日は何の授業を始めますか?"))
+    # print(classify_emotion_from_text_tail("先生！助けて！"))
+    # print(classify_emotion_from_text_tail("うーん…"))
+    # print(get_prompt_info_from_name(name='arona', emotion='error'))  # normal fallback
