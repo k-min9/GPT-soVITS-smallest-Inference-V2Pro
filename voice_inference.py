@@ -454,6 +454,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
 
     if not use_pretrained:
         voice_info = voice_management.get_voice_info_from_name(actor)
+        print('###voiceinfo', voice_info)
         has_custom = False
         if voice_info:
             if os.path.exists(voice_info.get('sovits_path', '')) and os.path.exists(voice_info.get('gpt_path', '')):
@@ -643,10 +644,10 @@ def synthesize_cloning_voice(char_name, audio_text, audio_language='ja', speed=1
     prompt_info = voice_management.get_prompt_info_from_name(char_name)
     if prompt_info is None:
         return "no info"
-        
-    prompt_language = prompt_info['language']
-    ref_wav_path = prompt_info['wav_path']
+    
+    ref_wav_path = prompt_info['wav_path'] 
     prompt_text = prompt_info['text']
+    prompt_language = prompt_info['language']
     
     result = get_tts_wav(
         ref_wav_path, prompt_text, prompt_language, 
@@ -656,12 +657,161 @@ def synthesize_cloning_voice(char_name, audio_text, audio_language='ja', speed=1
     return result
 
 def synthesize_char(char_name, audio_text, audio_language='ja', speed=1):
+    ref_wav_path = ''
+    prompt_text = ''
+    prompt_language = ''
+    
+    try:
+        prompt_info = voice_management.get_prompt_info_from_name(char_name)
+        if prompt_info is None:
+            return "no info"
+        
+        ref_wav_path = prompt_info['wav_path'] 
+        prompt_text = prompt_info['text']
+        prompt_language = prompt_info['language']
+    except:
+        pass
+    
     return get_tts_wav(
-        ref_wav_path="", prompt_text="", prompt_language="", 
+        ref_wav_path=ref_wav_path, prompt_text=prompt_text, prompt_language=prompt_language, 
         text=audio_text, text_language=audio_language, 
         actor=char_name, speed=speed
     )
 
 if __name__ == '__main__':
-    # 테스트 코드 영역
-    pass
+    # voice_inference_test에서 만든 voices/info.json에 들어간 내용 테스트
+    import nltk
+    nltk.download('averaged_perceptron_tagger_eng')
+    
+    cnhubert_base_path = './pretrained_models/chinese-hubert-base'
+    bert_path = './pretrained_models/chinese-roberta-wwm-ext-large'
+    _CUDA_VISIBLE_DEVICES = 0
+    # is_half = False  # Float32
+    is_half = True  # Float32
+    
+    # audio_text = '안녕? 난 민구라고 해'
+    # audio_text = '테스트중! 메리크리스마스!'
+    # audio_text = 'API 사용 가능한가요?'
+    # audio_text = 'Only English Spokened'
+    # audio_text = '오케이!'
+    # audio_text = 'python can be spoken'
+    # audio_text = 'get some rest sensei! 안녕하세요?'
+    # audio_language = 'ko'
+    audio_text = '待っておったぞ、先生。'
+    audio_text = 'そなたはイタズラが好きなのじゃな。'
+    # audio_text = '新しきを知るのは良いことじゃ。そうじゃろ?'
+    # audio_text = 'じゃが、ゆるそう。'
+    # audio_text = 'ほれ、カボチャとナツメの料理じゃ。そなたと一緒に食べたいと思ってな。'
+    audio_text = '右クリックでメニューを開き、設定を変更することができます。'
+    # audio_text = 'ふぅえ…'
+    # audio_text = 'ひえええっ！'
+    # audio_text = '先生を信用しているつもりです。'  # miyako idx = 0 오류
+    audio_language = 'ja'
+    # print('error?')
+    
+    audio_text = audio_text.replace('AI', 'えいあい')
+    audio_text = audio_text.replace('MY-Little-JARVIS-3D', 'マイリトル・ジャービス スリーでぃ')
+    audio_text = audio_text.replace('MY-Little-JARVIS', 'マイリトル・ジャービス')
+    audio_text = audio_text.replace('Android', 'アンドロイド')
+    audio_text = audio_text.replace('Windows', 'ウィンドウズ')
+    audio_text = audio_text.replace('方', 'かた')
+    audio_text = audio_text.replace('.exe', 'ドット exe')
+    
+    print(audio_text)
+    
+    actor = 'Shigure_(Hot_Spring)'
+    actor = 'Yuzu_(Maid)'  # 현재 normal이 없으면 오류나는 대표적 예시
+    actor = 'Yuzu'  
+    
+    # prompt_info = voice_management.get_prompt_info_from_name(actor)  # Todo : 없을때의 Try Catch
+    # prompt_language = prompt_info['language'] # 'ja'
+    # ref_wav_path = prompt_info['wav_path'] #'./voices/noa.wav'
+    # prompt_text = prompt_info['text'] # 'さすがです、先生。勉強になりました。'
+       
+    # get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor=actor)
+    # get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor='arona')
+    # get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor='arona')
+    # get_tts_wav(ref_wav_path, prompt_text, prompt_language, audio_text, audio_language, actor='arona')
+    
+    # result = synthesize_char(actor, audio_text, audio_language='ja', speed=1)
+    # print('save at ' + result)
+    
+    # ========== Actor 30개 문장 연속 테스트 ==========
+    if True:
+        print("\n" + "="*60)
+        print("[Multi-Sentence Test] Testing 30 sentences...")
+        print("="*60 + "\n")
+        
+        audio_text_list = []
+        # 일본어 테스트 문장 30개
+        audio_text_list.append("おはようございます、先生。今日も良い一日になりますように。")
+        audio_text_list.append("先生、お疲れ様です。少し休憩しませんか？")
+        audio_text_list.append("このデータを分析してみましたが、興味深い結果が出ました。")
+        audio_text_list.append("シャーレの生徒たちは、みんな元気にしています。")
+        audio_text_list.append("今日の授業、とても楽しかったですね。")
+        audio_text_list.append("先生、明日の予定は確認されましたか？")
+        audio_text_list.append("新しいプロジェクトが始まりますよ。")
+        audio_text_list.append("みんなで協力すれば、必ず成功できます。")
+        audio_text_list.append("データベースの更新が完了しました。")
+        audio_text_list.append("セキュリティシステムに異常はありません。")
+        audio_text_list.append("先生のおかげで、問題が解決しました。")
+        audio_text_list.append("この資料、とても参考になると思います。")
+        audio_text_list.append("次の会議は午後2時からです。")
+        audio_text_list.append("お昼ご飯、何を食べますか？")
+        audio_text_list.append("天気が良いですね。散歩しませんか？")
+        audio_text_list.append("新しい機能を追加してみました。")
+        audio_text_list.append("システムのメンテナンスは終わりました。")
+        audio_text_list.append("レポートの提出期限は明日までです。")
+        audio_text_list.append("みんな、頑張っていますね。")
+        audio_text_list.append("先生、質問があります。聞いてもいいですか？")
+        audio_text_list.append("計画通りに進んでいます。")
+        audio_text_list.append("もうすぐゴールが見えてきました。")
+        audio_text_list.append("素晴らしい成果ですね。おめでとうございます。")
+        audio_text_list.append("次のステップに進みましょう。")
+        audio_text_list.append("困ったことがあれば、いつでも相談してください。")
+        audio_text_list.append("先生は本当に頼りになります。")
+        audio_text_list.append("今日も一日、お疲れ様でした。")
+        audio_text_list.append("明日も頑張りましょうね。")
+        audio_text_list.append("良い夢を見てください。おやすみなさい。")
+        audio_text_list.append("また明日お会いしましょう。さようなら。")
+        
+        for idx, text in enumerate(audio_text_list, 1):
+            try:
+                print(f"[{idx}/30] Synthesizing: {text[:30]}...")
+                result = synthesize_char(actor, text, audio_language='ja', speed=1)
+                result_path = os.path.abspath(result)
+                print(f"[{idx}/30] -> {result_path} ✓")
+            except Exception as e:
+                print(f"[{idx}/30] -> FAILED: {e}")
+        
+        print("\n" + "="*60)
+        print("[Arona Multi-Sentence Test] Completed!")
+        print("="*60)
+    
+    # ========== Zero-Shot Voice Cloning 전체 캐릭터 테스트 ==========
+    if False:
+        print("\n" + "="*60)
+        print("[Zero-Shot] Testing all characters...")
+        print("="*60 + "\n")
+        
+        # info.json의 모든 캐릭터 목록
+        all_characters = [
+            'arona', 'plana', 'mika', 'yuuka', 'noa', 'koyuki',
+            'nagisa', 'mari', 'kisaki', 'miyako', 'ui', 'seia', 'prana'
+        ]
+        
+        test_text = "先生、お疲れ様でした。今日も頑張りましたね。"  # 테스트용 일본어 텍스트
+        
+        for char in all_characters:
+            try:
+                print(f"\n[Zero-Shot Test] {char}...")
+                result = synthesize_cloning_voice(char, test_text, audio_language='ja', speed=1)
+                # Ctrl+클릭 가능한 절대 경로로 출력
+                result_path = os.path.abspath(result)
+                print(f"[Zero-Shot Test] {char} -> {result_path} ✓")
+            except Exception as e:
+                print(f"[Zero-Shot Test] {char} -> FAILED: {e}")
+        
+        print("\n" + "="*60)
+        print("[Zero-Shot] All tests completed!")
+        print("="*60)
